@@ -10,12 +10,12 @@ import (
 func ReadFile(filePath string) ([]string, error) {
 	var stringSlice []string
 	f, err := os.Open(filePath)
-	defer func() {
-		err = f.Close()
-	}()
 	if err != nil {
 		return stringSlice, err
 	}
+	defer func() {
+		err = f.Close()
+	}()
 	buf := bufio.NewReader(f)
 	for {
 		line, err := buf.ReadString('\n')
@@ -28,5 +28,5 @@ func ReadFile(filePath string) ([]string, error) {
 			return stringSlice, err
 		}
 	}
-	return stringSlice, nil
+	return stringSlice, err
 }
