@@ -1,49 +1,88 @@
 package pkg
 
 import (
+	"bufio"
+	"fmt"
 	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/entity"
 	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/internal"
-	"github.com/pkg/errors"
+	"io"
+	"os"
+	"strings"
+	"sync"
 )
 
-func ReadAndParseFiles(tariffFilePath, sessionFilePath string) ([]entity.Tariff, []entity.Session, error) {
-	var tariffs []entity.Tariff
-	var sessions []entity.Session
-	tariffStrings, err := internal.ReadFile(tariffFilePath)
+func ReadAndProcessEfficiently(sessionFilePath string, tariffs []entity.Tariff) error {
+	f, err := os.Open(sessionFilePath)
 	if err != nil {
-		return tariffs, sessions, errors.Wrap(err, "Error reading tariffs file")
+		return err
 	}
-	sessionStrings, err := internal.ReadFile(sessionFilePath)
+	defer func() {
+		err = f.Close()
+	}()
+	linesPool := sync.Pool{New: func() interface{} {
+		lines := make([]byte, 500*1024)
+		return lines
+	}}
+	stringsPool := sync.Pool{New: func() interface{} {
+		strs := ""
+		return strs
+	}}
+	r := bufio.NewReader(f)
+	// skip the header
+	_, err = r.ReadBytes('\n')
 	if err != nil {
-		return tariffs, sessions, errors.Wrap(err, "Error reading sessions file")
+		return err
 	}
-	tariffs, err = internal.ParseTariff(tariffStrings[1:])
-	if err != nil {
-		return tariffs, sessions, err
-	}
-	sessions, err = internal.ParseSession(sessionStrings[1:])
-	if err != nil {
-		return tariffs, sessions, err
-	}
-	return tariffs, sessions, nil
-}
-
-func CostCalculator(tariffs []entity.Tariff, sessions []entity.Session) ([]entity.Cost, error) {
-	uniqueCosts := make(map[string]float64)
-	var costs []entity.Cost
-	for _, session := range sessions {
-		for _, tariff := range tariffs {
-			if internal.CheckTimeOverlap(tariff, session) {
-				tariffDuration := tariff.End.Sub(tariff.Start)
-				uniqueCosts[session.ID] = session.Energy*tariff.EnergyFee +
-					tariff.ParkingFee*tariffDuration.Hours()
+	var wg sync.WaitGroup
+	for {
+		buf := linesPool.Get().([]byte)
+		n, err := r.Read(buf)
+		buf = buf[:n]
+		if n == 0 {
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
 			}
 		}
+		nextUntilNewline, err := r.ReadBytes('\n')
+		if err != io.EOF {
+			buf = append(buf, nextUntilNewline...)
+		}
+		wg.Add(1)
+		go func() {
+			processChunk(buf, &linesPool, &stringsPool, tariffs)
+			wg.Done()
+		}()
 	}
-	for id, totalCost := range uniqueCosts {
-		uniqueCosts[id] = internal.TruncateFloat(totalCost * 1.15)
-		cost := entity.Cost{SessionID: id, TotalCost: uniqueCosts[id]}
-		costs = append(costs, cost)
+	wg.Wait()
+	return nil
+}
+
+func processChunk(chunk []byte, linesPool, stringPool *sync.Pool, tariffs []entity.Tariff) {
+	sessionStrings := stringPool.Get().(string)
+	sessionStrings = string(chunk)
+
+	linesPool.Put(chunk)
+
+	sessionsSlice := strings.Split(sessionStrings, "\n")
+	stringPool.Put(sessionStrings)
+
+	sessions, err := internal.ParseSession(sessionsSlice)
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
-	return costs, nil
+	costs, err := internal.CostCalculator(tariffs, sessions)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = internal.WriteFile("./data/calculated_costs.csv", costs)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	return
 }

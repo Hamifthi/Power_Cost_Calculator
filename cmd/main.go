@@ -9,15 +9,15 @@ import (
 
 func main() {
 	logger := log.New(os.Stdout, "CostCalculator ", log.LstdFlags)
-	tariffs, sessions, err := pkg.ReadAndParseFiles("./data/tariffs.csv", "./data/sessions.csv")
+	tariffStrings, err := internal.ReadFile("./data/tariffs.csv")
 	if err != nil {
 		logger.Println(err)
 	}
-	costs, err := pkg.CostCalculator(tariffs, sessions)
+	tariffs, err := internal.ParseTariff(tariffStrings[1:])
 	if err != nil {
 		logger.Println(err)
 	}
-	err = internal.WriteFile("./data/calculated_costs.csv", costs)
+	err = pkg.ReadAndProcessEfficiently("./data/sessions.csv", tariffs)
 	if err != nil {
 		logger.Println(err)
 	}
