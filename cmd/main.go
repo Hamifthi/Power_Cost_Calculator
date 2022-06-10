@@ -1,24 +1,32 @@
 package main
 
 import (
-	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/internal"
-	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/pkg"
+	"fmt"
+	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/pkg/calculator"
 	"log"
 	"os"
+	"sync"
 )
 
 func main() {
 	logger := log.New(os.Stdout, "CostCalculator ", log.LstdFlags)
-	tariffStrings, err := internal.ReadFile("./data/tariffs.csv")
+	linesPool := sync.Pool{New: func() interface{} {
+		lines := make([]byte, 500*1024)
+		return lines
+	}}
+	stringsPool := sync.Pool{New: func() interface{} {
+		strs := ""
+		return strs
+	}}
+	costCalculator := calculator.New(logger, &linesPool, &stringsPool, "./data/calculated_costs.csv")
+	tariffs, err := costCalculator.ReadAndParseTariffs("./data/tariffs.csv")
 	if err != nil {
-		logger.Println(err)
+		fmt.Println("can't read tariffs file")
+		os.Exit(1)
 	}
-	tariffs, err := internal.ParseTariff(tariffStrings[1:])
+	err = costCalculator.ReadAndProcessSessions("./data/sessions.csv", tariffs)
 	if err != nil {
-		logger.Println(err)
-	}
-	err = pkg.ReadAndProcessEfficiently("./data/sessions.csv", tariffs)
-	if err != nil {
-		logger.Println(err)
+		fmt.Println("can't process sessions")
+		os.Exit(1)
 	}
 }
