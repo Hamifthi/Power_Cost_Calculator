@@ -1,20 +1,22 @@
 package entity
 
+import "time"
+
 type Tariff struct {
-	Start      string
-	End        string
-	EnergyFee  float32
-	ParkingFee float32
+	Start      time.Time
+	End        time.Time
+	EnergyFee  float64
+	ParkingFee float64
 }
 
 type Session struct {
 	ID     string
-	Start  string
-	End    string
-	Energy float32
+	Start  time.Time
+	End    time.Time
+	Energy float64
 }
 
 type Cost struct {
 	SessionID string
-	TotalCost float32
+	TotalCost float64
 }
