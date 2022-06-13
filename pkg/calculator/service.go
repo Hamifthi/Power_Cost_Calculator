@@ -34,7 +34,7 @@ func New(logger *log.Logger, linesPool, stringsPool *sync.Pool, outputFileLocati
 func (cc *CostCalculator) ReadAndProcessSessions(sessionFilePath string, tariffs []entity.Tariff) error {
 	f, err := os.Open(sessionFilePath)
 	if err != nil {
-		cc.logger.Printf("Error reading session files because of %w", err)
+		cc.logger.Printf("Error reading session files because of %v", err)
 		return err
 	}
 	defer func() {
@@ -44,7 +44,7 @@ func (cc *CostCalculator) ReadAndProcessSessions(sessionFilePath string, tariffs
 	// skip the header
 	_, err = r.ReadBytes('\n')
 	if err != nil {
-		cc.logger.Printf("Error reading the header of the session file because of %w", err)
+		cc.logger.Printf("Error reading the header of the session file because of %v", err)
 		return err
 	}
 	var wg sync.WaitGroup
@@ -57,13 +57,13 @@ func (cc *CostCalculator) ReadAndProcessSessions(sessionFilePath string, tariffs
 				break
 			}
 			if err != nil {
-				cc.logger.Printf("Error reading the file into buffer because of %w", err)
+				cc.logger.Printf("Error reading the file into buffer because of %v", err)
 				return err
 			}
 		}
 		nextUntilNewline, err := r.ReadBytes('\n')
 		if err != io.EOF {
-			cc.logger.Printf("Error reading the remaining line until next line because of %w", err)
+			cc.logger.Printf("Error reading the remaining line until next line because of %v", err)
 			buf = append(buf, nextUntilNewline...)
 		}
 		wg.Add(1)
@@ -87,30 +87,26 @@ func (cc *CostCalculator) processChunk(chunk []byte, tariffs []entity.Tariff) {
 
 	sessions, err := internal.ParseSession(sessionsSlice)
 	if err != nil {
-		cc.logger.Printf("Error parsing sessions because of %w", err)
+		cc.logger.Printf("Error parsing sessions because of %v", err)
 		return
 	}
-	costs, err := internal.CostCalculator(tariffs, sessions)
+	costs := internal.CostCalculator(tariffs, sessions)
+	err = cc.WriteCosts(costs)
 	if err != nil {
-		cc.logger.Printf("Error calculating costs because of %w", err)
-		return
-	}
-	err = cc.WriteFile(costs)
-	if err != nil {
-		cc.logger.Printf("Error writing costs to output file because of %w", err)
+		cc.logger.Printf("Error writing costs to output file because of %v", err)
 		return
 	}
 	return
 }
 
-func (cc *CostCalculator) WriteFile(costs []entity.Cost) error {
+func (cc *CostCalculator) WriteCosts(costs []entity.Cost) error {
 	var writer *csv.Writer
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	if _, err := os.Stat(cc.outputFileLocation); errors.Is(err, os.ErrNotExist) {
 		file, err := os.Create(cc.outputFileLocation)
 		if err != nil {
-			cc.logger.Printf("Error creating output file because of %w", err)
+			cc.logger.Printf("Error creating output file because of %v", err)
 			return err
 		}
 		defer func() {
@@ -119,13 +115,13 @@ func (cc *CostCalculator) WriteFile(costs []entity.Cost) error {
 		writer = csv.NewWriter(file)
 		err = writer.Write([]string{"session_id", "total_cost"})
 		if err != nil {
-			cc.logger.Printf("Error writing output file header because of %w", err)
+			cc.logger.Printf("Error writing output file header because of %v", err)
 			return err
 		}
 	} else {
 		file, err := os.OpenFile(cc.outputFileLocation, os.O_APPEND|os.O_WRONLY, 0744)
 		if err != nil {
-			cc.logger.Printf("Error opening output file because of %w", err)
+			cc.logger.Printf("Error opening output file because of %v", err)
 			return err
 		}
 		defer func() {
@@ -137,7 +133,7 @@ func (cc *CostCalculator) WriteFile(costs []entity.Cost) error {
 	for _, cost := range costs {
 		row := []string{cost.SessionID, fmt.Sprintf("%.3f", cost.TotalCost)}
 		if err := writer.Write(row); err != nil {
-			cc.logger.Printf("Error writing to output file because of %w", err)
+			cc.logger.Printf("Error writing to output file because of %v", err)
 			return err
 		}
 	}
@@ -145,15 +141,15 @@ func (cc *CostCalculator) WriteFile(costs []entity.Cost) error {
 }
 
 func (cc *CostCalculator) ReadAndParseTariffs(filePath string) ([]entity.Tariff, error) {
-	tariffStrings, err := internal.ReadFile(filePath)
 	var tariffs []entity.Tariff
+	tariffStrings, err := internal.ReadFile(filePath)
 	if err != nil {
-		cc.logger.Printf("Error reading tariffs file because of %w", err)
+		cc.logger.Printf("Error reading tariffs file because of %v", err)
 		return tariffs, err
 	}
 	tariffs, err = internal.ParseTariff(tariffStrings[1:])
 	if err != nil {
-		cc.logger.Printf("Error parsing tariffs file because of %w", err)
+		cc.logger.Printf("Error parsing tariffs file because of %v", err)
 		return tariffs, err
 	}
 	return tariffs, err
