@@ -42,7 +42,7 @@ func ParseSession(lines []string) ([]entity.Session, error) {
 		if err != nil {
 			return sessions, errors.Wrap(err, "Error while parsing Sessions converting start time string")
 		}
-		end, err := time.Parse(time.RFC3339, stringSlice[1])
+		end, err := time.Parse(time.RFC3339, stringSlice[2])
 		if err != nil {
 			return sessions, errors.Wrap(err, "Error while parsing Sessions converting end time string")
 		}
