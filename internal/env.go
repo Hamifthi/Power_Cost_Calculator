@@ -1,9 +1,9 @@
 package internal
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"log"
 )
 
 func InitializeEnv(envFilePath string) error {
@@ -15,10 +15,10 @@ func InitializeEnv(envFilePath string) error {
 	return nil
 }
 
-func GetEnv(key string) (string, error) {
+func GetEnv(key string, logger *log.Logger) (string, error) {
 	value, ok := viper.Get(key).(string)
 	if !ok {
-		return "", fmt.Errorf("type assertion failed for the key: %s", key)
+		logger.Printf("type assertion failed for the key: %s", key)
 	}
 	return value, nil
 }
