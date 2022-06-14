@@ -10,6 +10,10 @@ import (
 
 func main() {
 	logger := log.New(os.Stdout, "CostCalculator ", log.LstdFlags)
+	err := internal.InitializeEnv("./.env")
+	if err != nil {
+		logger.Fatalf("Error can't initialize env file %v", err)
+	}
 	// get and parse sync pool buffer size
 	syncPoolSizeStr, err := internal.GetEnv("SYNC_POOL_SIZE", logger)
 	syncPoolSize, _ := strconv.ParseInt(syncPoolSizeStr, 10, 64)
