@@ -1,32 +1,35 @@
 package main
 
 import (
-	"fmt"
+	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/internal"
 	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/pkg/calculator"
 	"log"
 	"os"
-	"sync"
+	"strconv"
 )
 
 func main() {
 	logger := log.New(os.Stdout, "CostCalculator ", log.LstdFlags)
-	linesPool := sync.Pool{New: func() interface{} {
-		lines := make([]byte, 500*1024)
-		return lines
-	}}
-	stringsPool := sync.Pool{New: func() interface{} {
-		strs := ""
-		return strs
-	}}
-	costCalculator := calculator.New(logger, &linesPool, &stringsPool, "./data/calculated_costs.csv")
-	tariffs, err := costCalculator.ReadAndParseTariffs("./data/tariffs.csv")
+	// get and parse sync pool buffer size
+	syncPoolSizeStr, err := internal.GetEnv("SYNC_POOL_SIZE", logger)
+	syncPoolSize, _ := strconv.ParseInt(syncPoolSizeStr, 10, 64)
 	if err != nil {
-		fmt.Println("can't read tariffs file")
-		os.Exit(1)
+		logger.Fatalf("Error parsing sync pool size to int to %v", err)
 	}
-	err = costCalculator.ReadAndProcessSessions("./data/sessions.csv", tariffs)
+	// get lines pool and strings pool
+	linesPool, stringsPool := calculator.CreateSyncPools(syncPoolSize)
+	// output file location that service will create
+	outputFileLocation, _ := internal.GetEnv("OUTPUT_FILE_LOCATION", logger)
+	// create cost calculator service and process inputs that creates output
+	costCalculator := calculator.New(logger, linesPool, stringsPool, outputFileLocation)
+	tariffsFileLocation, _ := internal.GetEnv("TARIFFS_FILE_LOCATION", logger)
+	tariffs, err := costCalculator.ReadAndParseTariffs(tariffsFileLocation)
 	if err != nil {
-		fmt.Println("can't process sessions")
-		os.Exit(1)
+		logger.Fatalf("can't read tariffs file due to %v", err)
+	}
+	sessionFileLocation, _ := internal.GetEnv("SESSIONS_FILE_LOCATION", logger)
+	err = costCalculator.ReadAndProcessSessions(sessionFileLocation, tariffs)
+	if err != nil {
+		logger.Fatalf("can't process sessions file due to %v", err)
 	}
 }
