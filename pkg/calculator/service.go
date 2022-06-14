@@ -22,13 +22,25 @@ type CostCalculator struct {
 	outputFileLocation string
 }
 
-func New(logger *log.Logger, linesPool, stringsPool *sync.Pool, outputFileLocation string) CostCalculator {
-	return CostCalculator{
+func New(logger *log.Logger, linesPool, stringsPool *sync.Pool, outputFileLocation string) *CostCalculator {
+	return &CostCalculator{
 		logger:             logger,
 		linesPool:          linesPool,
 		stringsPool:        stringsPool,
 		outputFileLocation: outputFileLocation,
 	}
+}
+
+func CreateSyncPools(syncPoolSize int64) (*sync.Pool, *sync.Pool) {
+	linesPool := sync.Pool{New: func() interface{} {
+		lines := make([]byte, syncPoolSize)
+		return lines
+	}}
+	stringsPool := sync.Pool{New: func() interface{} {
+		strs := ""
+		return strs
+	}}
+	return &linesPool, &stringsPool
 }
 
 func (cc *CostCalculator) ReadAndProcessSessions(sessionFilePath string, tariffs []entity.Tariff) error {
