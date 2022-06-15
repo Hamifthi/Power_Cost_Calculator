@@ -9,29 +9,28 @@ import (
 )
 
 func main() {
+	// first initialize and read all environmental variables
 	logger := log.New(os.Stdout, "CostCalculator ", log.LstdFlags)
-	err := internal.InitializeEnv("./.env")
-	if err != nil {
-		logger.Fatalf("Error can't initialize env file %v", err)
-	}
+	envHandler := internal.NewEnvHandler(logger)
+	envHandler.InitializeEnv("./.env")
+	// file locations that service will need
+	outputFileLocation := envHandler.GetEnv("OUTPUT_FILE_LOCATION")
+	tariffsFileLocation := envHandler.GetEnv("TARIFFS_FILE_LOCATION")
+	sessionFileLocation := envHandler.GetEnv("SESSIONS_FILE_LOCATION")
 	// get and parse sync pool buffer size
-	syncPoolSizeStr, err := internal.GetEnv("SYNC_POOL_SIZE", logger)
-	syncPoolSize, _ := strconv.ParseInt(syncPoolSizeStr, 10, 64)
+	syncPoolSizeStr := envHandler.GetEnv("SYNC_POOL_SIZE")
+	syncPoolSize, err := strconv.ParseInt(syncPoolSizeStr, 10, 64)
 	if err != nil {
 		logger.Fatalf("Error parsing sync pool size to int to %v", err)
 	}
 	// get lines pool and strings pool
 	linesPool, stringsPool := calculator.CreateSyncPools(syncPoolSize)
-	// output file location that service will create
-	outputFileLocation, _ := internal.GetEnv("OUTPUT_FILE_LOCATION", logger)
 	// create cost calculator service and process inputs that creates output
 	costCalculator := calculator.New(logger, linesPool, stringsPool, outputFileLocation)
-	tariffsFileLocation, _ := internal.GetEnv("TARIFFS_FILE_LOCATION", logger)
 	tariffs, err := costCalculator.ReadAndParseTariffs(tariffsFileLocation)
 	if err != nil {
 		logger.Fatalf("can't read tariffs file due to %v", err)
 	}
-	sessionFileLocation, _ := internal.GetEnv("SESSIONS_FILE_LOCATION", logger)
 	err = costCalculator.ReadAndProcessSessions(sessionFileLocation, tariffs)
 	if err != nil {
 		logger.Fatalf("can't process sessions file due to %v", err)

@@ -1,24 +1,31 @@
 package internal
 
 import (
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"log"
 )
 
-func InitializeEnv(envFilePath string) error {
+type EnvHandler struct {
+	logger *log.Logger
+}
+
+func NewEnvHandler(logger *log.Logger) *EnvHandler {
+	return &EnvHandler{logger: logger}
+}
+
+func (env *EnvHandler) InitializeEnv(envFilePath string) {
 	viper.SetConfigFile(envFilePath)
 	err := viper.ReadInConfig()
 	if err != nil {
-		return errors.Wrap(err, "Viper can't read the config file")
+		env.logger.Fatalf("Viper can't read the config file because of %v", err)
 	}
-	return nil
+	return
 }
 
-func GetEnv(key string, logger *log.Logger) (string, error) {
+func (env *EnvHandler) GetEnv(key string) string {
 	value, ok := viper.Get(key).(string)
 	if !ok {
-		logger.Printf("type assertion failed for the key: %s", key)
+		log.Fatalf("type assertion failed for the key: %s", key)
 	}
-	return value, nil
+	return value
 }

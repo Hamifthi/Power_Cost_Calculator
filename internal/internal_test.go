@@ -25,8 +25,9 @@ func TestReadFileInvalidFilePathFails(t *testing.T) {
 
 func TestReadFileSuccessfully(t *testing.T) {
 	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	_ = InitializeEnv("../test.env")
-	tariffFileLocation, _ := GetEnv("INTERNAL_TARIFFS_FILE_LOCATION", logger)
+	envHandler := NewEnvHandler(logger)
+	envHandler.InitializeEnv("../test.env")
+	tariffFileLocation := envHandler.GetEnv("INTERNAL_TARIFFS_FILE_LOCATION")
 	stringSlice, err := ReadFile(tariffFileLocation)
 	assert.Nil(t, err)
 	assert.NotNil(t, stringSlice)
@@ -212,29 +213,10 @@ func TestCostCalculator(t *testing.T) {
 	assert.Equal(t, costs[0], entity.Cost{SessionID: "a949d681-e12b-4d93-a3e5-e2e777e68f12", TotalCost: 0.759})
 }
 
-func TestInitializeEnvInvalidPathFails(t *testing.T) {
-	err := InitializeEnv("./sample.env")
-	assert.NotNil(t, err)
-	assert.ErrorContains(t, err, err.Error(), "Viper can't read the config file")
-}
-
-func TestInitializeEnvSuccessfully(t *testing.T) {
-	err := InitializeEnv("../sample.env")
-	assert.Nil(t, err)
-}
-
-func TestGetEnvNotExistedKeyFails(t *testing.T) {
-	_ = InitializeEnv("../sample.env")
-	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	value, err := GetEnv("notExist", logger)
-	assert.Nil(t, err)
-	assert.Equal(t, value, "")
-}
-
 func TestGetEnvSuccessfully(t *testing.T) {
-	_ = InitializeEnv("../test.env")
 	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	value, err := GetEnv("TEST", logger)
-	assert.Nil(t, err)
+	envHandler := NewEnvHandler(logger)
+	envHandler.InitializeEnv("../test.env")
+	value := envHandler.GetEnv("TEST")
 	assert.Equal(t, value, "test")
 }
