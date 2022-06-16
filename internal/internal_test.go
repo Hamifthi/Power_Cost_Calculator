@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"encoding/csv"
 	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/entity"
 	"github.com/stretchr/testify/assert"
 	"log"
@@ -185,7 +186,7 @@ func TestCalculateTimeOverlapWithOverlapSessionLessThanTariff(t *testing.T) {
 		"2020-06-03T09:20:00+02:00")
 	session := entity.Session{ID: "a949d681-e12b-4d93-a3e5-e2e777e68f12", Start: sessionStart,
 		End: sessionEnd, Energy: 3}
-	timeOverlap := truncateFloat(calculateTimeOverlap(tariff, session))
+	timeOverlap := TruncateFloat(calculateTimeOverlap(tariff, session))
 	assert.Equal(t, timeOverlap, 3.333)
 }
 
@@ -197,7 +198,7 @@ func TestCalculateTimeOverlapWithOverlapSessionEqualTariff(t *testing.T) {
 		"2020-06-03T10:10:00+02:00")
 	session := entity.Session{ID: "a949d681-e12b-4d93-a3e5-e2e777e68f12", Start: sessionStart,
 		End: sessionEnd, Energy: 3}
-	timeOverlap := truncateFloat(calculateTimeOverlap(tariff, session))
+	timeOverlap := TruncateFloat(calculateTimeOverlap(tariff, session))
 	assert.Equal(t, timeOverlap, 10.166)
 }
 
@@ -219,4 +220,13 @@ func TestGetEnvSuccessfully(t *testing.T) {
 	envHandler.InitializeEnv("../test.env")
 	value := envHandler.GetEnv("TEST")
 	assert.Equal(t, value, "test")
+}
+
+func TestCreateCSVWriterAndWriteHeader(t *testing.T) {
+	fileName := "./something"
+	file, _ := os.Create(fileName)
+	csvWriter, err := CreateCSVWriterAndWriteHeader([]string{"something"}, file)
+	assert.Nil(t, err)
+	assert.IsType(t, &csv.Writer{}, csvWriter)
+	_ = os.Remove(fileName)
 }

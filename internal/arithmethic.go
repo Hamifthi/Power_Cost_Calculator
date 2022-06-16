@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+// check time overlap works with this rule (StartA <= EndB) and (EndA >= StartB)
+// keep in mind I use tariff as time A and session as time B
 func checkTimeOverlap(tariff entity.Tariff, session entity.Session) bool {
 	if tariff.Start.Before(session.End) && tariff.End.After(session.Start) {
 		return true
@@ -13,6 +15,8 @@ func checkTimeOverlap(tariff entity.Tariff, session entity.Session) bool {
 	return false
 }
 
+// calculate time overlaps first calculated max of starts and then min of ends.
+// Then it subtracts the min end from max start to get time overlap
 func calculateTimeOverlap(tariff entity.Tariff, session entity.Session) float64 {
 	var duration time.Duration
 	var start time.Time
@@ -35,7 +39,7 @@ func calculateTimeOverlap(tariff entity.Tariff, session entity.Session) float64 
 	return duration.Hours()
 }
 
-func truncateFloat(number float64) float64 {
+func TruncateFloat(number float64) float64 {
 	return math.Trunc(number*1000) / 1000
 }
 
@@ -53,7 +57,7 @@ func CostCalculator(tariffs []entity.Tariff, sessions []entity.Session) []entity
 		}
 	}
 	for id, totalCost := range uniqueCosts {
-		uniqueCosts[id] = truncateFloat(totalCost * 1.15)
+		uniqueCosts[id] = TruncateFloat(totalCost * 1.15)
 		cost := entity.Cost{SessionID: id, TotalCost: uniqueCosts[id]}
 		costs = append(costs, cost)
 	}
