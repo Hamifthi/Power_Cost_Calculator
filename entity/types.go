@@ -1,6 +1,9 @@
 package entity
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 type Tariff struct {
 	Start      time.Time
@@ -19,4 +22,9 @@ type Session struct {
 type Cost struct {
 	SessionID string
 	TotalCost float64
+}
+
+type SyncPools struct {
+	LinesPool   *sync.Pool
+	StringsPool *sync.Pool
 }
