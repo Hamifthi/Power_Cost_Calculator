@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/entity"
 	"math"
 	"time"
@@ -43,23 +44,83 @@ func TruncateFloat(number float64) float64 {
 	return math.Trunc(number*1000) / 1000
 }
 
-func CostCalculator(tariffs []entity.Tariff, sessions []entity.Session) []entity.Cost {
-	uniqueCosts := make(map[string]float64)
-	var costs []entity.Cost
-	for _, session := range sessions {
-		sessionDuration := session.End.Sub(session.Start).Hours()
-		for _, tariff := range tariffs {
-			if checkTimeOverlap(tariff, session) {
-				duration := calculateTimeOverlap(tariff, session)
-				uniqueCosts[session.ID] += session.Energy*(duration/sessionDuration)*tariff.EnergyFee +
-					tariff.ParkingFee*duration
-			}
+// use this function to compare date with timezone because truncate function apply timezone in the calculation
+func dateEqual(firstDate, secondDate time.Time) bool {
+	y1, m1, d1 := firstDate.Date()
+	y2, m2, d2 := secondDate.Date()
+	return y1 == y2 && m1 == m2 && d1 == d2
+}
+
+func SearchExactApplicableTariff(tariffs []entity.Tariff, left, right int, session entity.Session) int {
+	if right >= left {
+		mid := left + (right-left)/2
+		tariff := tariffs[mid]
+		if dateEqual(tariff.Start, session.Start) || dateEqual(tariff.End, session.Start) ||
+			dateEqual(tariff.Start, session.End) || dateEqual(tariff.End, session.End) {
+			return mid
+		}
+		if session.End.Before(tariff.Start) {
+			return SearchExactApplicableTariff(tariffs, left, mid-1, session)
+		} else if session.Start.After(tariff.End) {
+			return SearchExactApplicableTariff(tariffs, mid+1, right, session)
 		}
 	}
-	for id, totalCost := range uniqueCosts {
-		uniqueCosts[id] = TruncateFloat(totalCost * 1.15)
-		cost := entity.Cost{SessionID: id, TotalCost: uniqueCosts[id]}
-		costs = append(costs, cost)
+	return -1
+}
+
+func GetApplicableTariffs(tariffs []entity.Tariff, tariffIndex int, session entity.Session) []entity.Tariff {
+	var applicableTariffs []entity.Tariff
+	sessionOneDayBefore := session.Start.Add(-time.Hour * 24)
+	sessionOneDayAfter := session.End.Add(time.Hour * 24)
+	// first get applicable tariffs that are before the session
+	index := tariffIndex
+	for {
+		if index < 0 {
+			break
+		}
+
+		if dateEqual(tariffs[index].Start, session.Start) ||
+			dateEqual(tariffs[index].End, session.Start) ||
+			dateEqual(tariffs[index].Start, sessionOneDayBefore) ||
+			dateEqual(tariffs[index].End, sessionOneDayBefore) {
+			if checkTimeOverlap(tariffs[index], session) {
+				applicableTariffs = append(applicableTariffs, tariffs[index])
+			}
+		} else {
+			break
+		}
+		index -= 1
 	}
-	return costs
+	// then get applicable tariffs that are after the session
+	index = tariffIndex
+	for {
+		index += 1
+		if index >= len(tariffs) {
+			break
+		}
+		if dateEqual(tariffs[index].Start, session.End) ||
+			dateEqual(tariffs[index].End, session.End) ||
+			dateEqual(tariffs[index].Start, sessionOneDayAfter) ||
+			dateEqual(tariffs[index].End, sessionOneDayAfter) {
+			if checkTimeOverlap(tariffs[index], session) {
+				applicableTariffs = append(applicableTariffs, tariffs[index])
+			}
+		} else {
+			break
+		}
+	}
+	return applicableTariffs
+}
+
+func CostCalculator(tariffs []entity.Tariff, session entity.Session) []string {
+	var cost float64
+	sessionDuration := session.End.Sub(session.Start).Hours()
+	for _, tariff := range tariffs {
+		duration := calculateTimeOverlap(tariff, session)
+		cost += session.Energy*(duration/sessionDuration)*tariff.EnergyFee +
+			tariff.ParkingFee*duration
+	}
+	cost = TruncateFloat(cost * 1.15)
+	formattedCost := []string{session.ID, fmt.Sprintf("%.3f", cost)}
+	return formattedCost
 }
