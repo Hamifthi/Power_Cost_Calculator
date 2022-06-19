@@ -8,10 +8,19 @@ import (
 	"time"
 )
 
+func createStartEndTimeFromString(startString, endString string) (time.Time, time.Time) {
+	start, _ := time.Parse(time.RFC3339, startString)
+	end, _ := time.Parse(time.RFC3339, endString)
+	return start, end
+}
+
 func ParseTariff(lines []string) ([]entity.Tariff, error) {
 	var tariffs []entity.Tariff
 	for i := 0; i < len(lines); i++ {
 		stringSlice := strings.Split(lines[i], ",")
+		if len(stringSlice) == 1 {
+			continue
+		}
 		start, err := time.Parse(time.RFC3339, stringSlice[0])
 		if err != nil {
 			return tariffs, errors.Wrap(err, "Error while parsing Tariffs converting start time string")
@@ -38,6 +47,9 @@ func ParseSession(lines []string) ([]entity.Session, error) {
 	var sessions []entity.Session
 	for i := 0; i < len(lines); i++ {
 		stringSlice := strings.Split(lines[i], ",")
+		if len(stringSlice) == 1 {
+			continue
+		}
 		start, err := time.Parse(time.RFC3339, stringSlice[1])
 		if err != nil {
 			return sessions, errors.Wrap(err, "Error while parsing Sessions converting start time string")

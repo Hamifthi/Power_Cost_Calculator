@@ -13,19 +13,25 @@ func NewEnvHandler(logger *log.Logger) *EnvHandler {
 	return &EnvHandler{logger: logger}
 }
 
-func (env *EnvHandler) InitializeEnv(envFilePath string) {
+func (eh *EnvHandler) InitializeEnv(envFilePath string) {
 	viper.SetConfigFile(envFilePath)
 	err := viper.ReadInConfig()
 	if err != nil {
-		env.logger.Fatalf("Viper can't read the config file because of %v", err)
+		eh.logger.Fatalf("Viper can't read the config file because of %v", err)
 	}
 	return
 }
 
-func (env *EnvHandler) GetEnv(key string) string {
+func (eh *EnvHandler) GetEnv(key string) string {
 	value, ok := viper.Get(key).(string)
 	if !ok {
-		log.Fatalf("type assertion failed for the key: %s", key)
+		eh.logger.Fatalf("type assertion failed for the key: %s", key)
 	}
 	return value
+}
+
+func ReadTestEnv(filePath string, logger *log.Logger) *EnvHandler {
+	envHandler := NewEnvHandler(logger)
+	envHandler.InitializeEnv(filePath)
+	return envHandler
 }

@@ -20,7 +20,10 @@ func ReadFile(filePath string) ([]string, error) {
 	for {
 		line, err := buf.ReadString('\n')
 		line = strings.TrimSpace(line)
-		stringSlice = append(stringSlice, line)
+		// it's because not adding empty line to the stringSlice
+		if len(line) != 0 {
+			stringSlice = append(stringSlice, line)
+		}
 		if err != nil {
 			if err == io.EOF {
 				break
