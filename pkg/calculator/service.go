@@ -3,7 +3,6 @@ package calculator
 import (
 	"bufio"
 	"encoding/csv"
-	"fmt"
 	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/entity"
 	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/internal"
 	"github.com/pkg/errors"
@@ -17,30 +16,18 @@ import (
 type CostCalculator struct {
 	logger             *log.Logger
 	mu                 sync.Mutex
-	linesPool          *sync.Pool
-	stringsPool        *sync.Pool
-	outputFileLocation string
+	pools              *entity.SyncPools
+	OutputFileLocation string
+	numberOfThreads    int
 }
 
-func New(logger *log.Logger, linesPool, stringsPool *sync.Pool, outputFileLocation string) *CostCalculator {
+func New(logger *log.Logger, pools *entity.SyncPools, outputFileLocation string, numberOfThreads int) *CostCalculator {
 	return &CostCalculator{
 		logger:             logger,
-		linesPool:          linesPool,
-		stringsPool:        stringsPool,
-		outputFileLocation: outputFileLocation,
+		pools:              pools,
+		OutputFileLocation: outputFileLocation,
+		numberOfThreads:    numberOfThreads,
 	}
-}
-
-func CreateSyncPools(syncPoolSize int64) (*sync.Pool, *sync.Pool) {
-	linesPool := sync.Pool{New: func() interface{} {
-		lines := make([]byte, syncPoolSize)
-		return lines
-	}}
-	stringsPool := sync.Pool{New: func() interface{} {
-		strs := ""
-		return strs
-	}}
-	return &linesPool, &stringsPool
 }
 
 func (cc *CostCalculator) ReadAndProcessSessions(sessionFilePath string, tariffs []entity.Tariff) error {
@@ -60,8 +47,11 @@ func (cc *CostCalculator) ReadAndProcessSessions(sessionFilePath string, tariffs
 		return err
 	}
 	var wg sync.WaitGroup
+	// maximum number of concurrent go routines
+	waitChan := make(chan struct{}, cc.numberOfThreads)
 	for {
-		buf := cc.linesPool.Get().([]byte)
+		waitChan <- struct{}{}
+		buf := cc.pools.LinesPool.Get().([]byte)
 		n, err := r.Read(buf)
 		buf = buf[:n]
 		if n == 0 {
@@ -75,13 +65,13 @@ func (cc *CostCalculator) ReadAndProcessSessions(sessionFilePath string, tariffs
 		}
 		nextUntilNewline, err := r.ReadBytes('\n')
 		if err != io.EOF {
-			cc.logger.Printf("Error reading the remaining line until next line because of %v", err)
-			buf = append(buf, nextUntilNewline...)
+			buf = append(buf, nextUntilNewline[:len(nextUntilNewline)-1]...)
 		}
 		wg.Add(1)
 		go func() {
 			cc.processChunk(buf, tariffs)
 			wg.Done()
+			<-waitChan
 		}()
 	}
 	wg.Wait()
@@ -89,20 +79,26 @@ func (cc *CostCalculator) ReadAndProcessSessions(sessionFilePath string, tariffs
 }
 
 func (cc *CostCalculator) processChunk(chunk []byte, tariffs []entity.Tariff) {
-	sessionStrings := cc.stringsPool.Get().(string)
+	sessionStrings := cc.pools.StringsPool.Get().(string)
 	sessionStrings = string(chunk)
 
-	cc.linesPool.Put(chunk)
+	cc.pools.LinesPool.Put(chunk)
 
 	sessionsSlice := strings.Split(sessionStrings, "\n")
-	cc.stringsPool.Put(sessionStrings)
+	cc.pools.StringsPool.Put(sessionStrings)
 
 	sessions, err := internal.ParseSession(sessionsSlice)
 	if err != nil {
 		cc.logger.Printf("Error parsing sessions because of %v", err)
 		return
 	}
-	costs := internal.CostCalculator(tariffs, sessions)
+	var costs [][]string
+	for _, session := range sessions {
+		applicableTariffIndex := internal.SearchExactApplicableTariff(tariffs, 0, len(tariffs)-1, session)
+		applicableTariffs := internal.GetApplicableTariffs(tariffs, applicableTariffIndex, session)
+		sessionCost := internal.CostCalculator(applicableTariffs, session)
+		costs = append(costs, sessionCost)
+	}
 	err = cc.WriteCosts(costs)
 	if err != nil {
 		cc.logger.Printf("Error writing costs to output file because of %v", err)
@@ -111,12 +107,12 @@ func (cc *CostCalculator) processChunk(chunk []byte, tariffs []entity.Tariff) {
 	return
 }
 
-func (cc *CostCalculator) WriteCosts(costs []entity.Cost) error {
+func (cc *CostCalculator) WriteCosts(costs [][]string) error {
 	var writer *csv.Writer
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
-	if _, err := os.Stat(cc.outputFileLocation); errors.Is(err, os.ErrNotExist) {
-		file, err := os.Create(cc.outputFileLocation)
+	if _, err := os.Stat(cc.OutputFileLocation); errors.Is(err, os.ErrNotExist) {
+		file, err := os.Create(cc.OutputFileLocation)
 		if err != nil {
 			cc.logger.Printf("Error creating output file because of %v", err)
 			return err
@@ -124,14 +120,13 @@ func (cc *CostCalculator) WriteCosts(costs []entity.Cost) error {
 		defer func() {
 			err = file.Close()
 		}()
-		writer = csv.NewWriter(file)
-		err = writer.Write([]string{"session_id", "total_cost"})
+		writer, err = internal.CreateCSVWriterAndWriteHeader([]string{"session_id", "total_cost"}, file)
 		if err != nil {
 			cc.logger.Printf("Error writing output file header because of %v", err)
 			return err
 		}
 	} else {
-		file, err := os.OpenFile(cc.outputFileLocation, os.O_APPEND|os.O_WRONLY, 0744)
+		file, err := os.OpenFile(cc.OutputFileLocation, os.O_APPEND|os.O_WRONLY, 0744)
 		if err != nil {
 			cc.logger.Printf("Error opening output file because of %v", err)
 			return err
@@ -142,12 +137,9 @@ func (cc *CostCalculator) WriteCosts(costs []entity.Cost) error {
 		writer = csv.NewWriter(file)
 	}
 	defer writer.Flush()
-	for _, cost := range costs {
-		row := []string{cost.SessionID, fmt.Sprintf("%.3f", cost.TotalCost)}
-		if err := writer.Write(row); err != nil {
-			cc.logger.Printf("Error writing to output file because of %v", err)
-			return err
-		}
+	if err := writer.WriteAll(costs); err != nil {
+		cc.logger.Printf("Error writing to output file because of %v", err)
+		return err
 	}
 	return nil
 }
