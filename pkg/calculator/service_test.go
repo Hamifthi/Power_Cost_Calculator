@@ -1,35 +1,38 @@
 package calculator
 
 import (
+	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/entity"
 	"github.com/ShellRechargeSolutionsEU/codechallenge-go-hamed-fathi/internal"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
-	"reflect"
-	"sync"
+	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 )
 
-func initializeCalculatorService() *CostCalculator {
-	logger := log.New(os.Stdout, "CostCalculator_Test ", log.LstdFlags)
-	linesPool := sync.Pool{New: func() interface{} {
-		lines := make([]byte, 200*1024)
-		return lines
-	}}
-	stringsPool := sync.Pool{New: func() interface{} {
-		strs := ""
-		return strs
-	}}
-	CostCalculator := New(logger, &linesPool, &stringsPool, "./costs_test.csv")
+var envPath string
+
+func init() {
+	currentDir, _ := os.Getwd()
+	rootDir := filepath.Dir(filepath.Dir(currentDir))
+	envPath = rootDir + "/test.env"
+}
+
+func initializeCalculatorService(logger *log.Logger, envHandler *internal.EnvHandler) *CostCalculator {
+	syncPoolSizeStr := envHandler.GetEnv("TEST_SYNC_POOL_SIZE")
+	syncPoolSize, _ := strconv.ParseInt(syncPoolSizeStr, 10, 64)
+	pools := entity.CreateSyncPools(syncPoolSize)
+	CostCalculator := New(logger, pools, envHandler.GetEnv("OUTPUT_FILE_LOCATION"), 5)
 	return CostCalculator
 }
 
 func TestReadAndParseTariffsSuccessfully(t *testing.T) {
-	calculator := initializeCalculatorService()
-	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	_ = internal.InitializeEnv("../../test.env")
-	tariffFilePath, _ := internal.GetEnv("TARIFFS_FILE_LOCATION", logger)
+	logger := log.New(os.Stdout, "Calculator_Test ", log.LstdFlags)
+	envHandler := internal.ReadTestEnv(envPath, logger)
+	calculator := initializeCalculatorService(logger, envHandler)
+	tariffFilePath := envHandler.GetEnv("TARIFFS_FILE_LOCATION")
 	tariffs, err := calculator.ReadAndParseTariffs(tariffFilePath)
 	assert.Nil(t, err)
 	assert.NotNil(t, tariffs)
@@ -41,10 +44,10 @@ func TestReadAndParseTariffsSuccessfully(t *testing.T) {
 }
 
 func TestReadAndProcessSessionsInvalidLocationFails(t *testing.T) {
-	calculator := initializeCalculatorService()
-	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	_ = internal.InitializeEnv("../../test.env")
-	tariffFilePath, _ := internal.GetEnv("TARIFFS_FILE_LOCATION", logger)
+	logger := log.New(os.Stdout, "Calculator_Test ", log.LstdFlags)
+	envHandler := internal.ReadTestEnv(envPath, logger)
+	calculator := initializeCalculatorService(logger, envHandler)
+	tariffFilePath := envHandler.GetEnv("TARIFFS_FILE_LOCATION")
 	tariffs, _ := calculator.ReadAndParseTariffs(tariffFilePath)
 	filePath := "data/sessions.csv"
 	err := calculator.ReadAndProcessSessions(filePath, tariffs)
@@ -53,32 +56,32 @@ func TestReadAndProcessSessionsInvalidLocationFails(t *testing.T) {
 }
 
 func TestReadAndProcessSessionsAlreadyExistedCostsFileSuccessfully(t *testing.T) {
-	calculator := initializeCalculatorService()
-	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	_ = internal.InitializeEnv("../../test.env")
-	outputFileLocation, _ := internal.GetEnv("OUTPUT_FILE_LOCATION", logger)
+	logger := log.New(os.Stdout, "Calculator_Test ", log.LstdFlags)
+	envHandler := internal.ReadTestEnv(envPath, logger)
+	calculator := initializeCalculatorService(logger, envHandler)
+	outputFileLocation := envHandler.GetEnv("OUTPUT_FILE_LOCATION")
 	_, _ = os.Create(outputFileLocation)
-	tariffFilePath, _ := internal.GetEnv("TARIFFS_FILE_LOCATION", logger)
+	tariffFilePath := envHandler.GetEnv("TARIFFS_FILE_LOCATION")
 	tariffs, _ := calculator.ReadAndParseTariffs(tariffFilePath)
-	sessionsFilePath, _ := internal.GetEnv("SESSIONS_FILE_LOCATION", logger)
+	sessionsFilePath := envHandler.GetEnv("SESSIONS_FILE_LOCATION")
 	err := calculator.ReadAndProcessSessions(sessionsFilePath, tariffs)
 	assert.Nil(t, err)
-	_ = os.Remove("./costs_test.csv")
+	_ = os.Remove(outputFileLocation)
 }
 
 func TestReadAndProcessSessionsSuccessfully(t *testing.T) {
-	calculator := initializeCalculatorService()
-	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	_ = internal.InitializeEnv("../../test.env")
-	tariffFilePath, _ := internal.GetEnv("TARIFFS_FILE_LOCATION", logger)
+	logger := log.New(os.Stdout, "Calculator_Test ", log.LstdFlags)
+	envHandler := internal.ReadTestEnv(envPath, logger)
+	calculator := initializeCalculatorService(logger, envHandler)
+	tariffFilePath := envHandler.GetEnv("TARIFFS_FILE_LOCATION")
 	tariffs, _ := calculator.ReadAndParseTariffs(tariffFilePath)
-	sessionsFilePath, _ := internal.GetEnv("SESSIONS_FILE_LOCATION", logger)
+	sessionsFilePath := envHandler.GetEnv("SESSIONS_FILE_LOCATION")
 	err := calculator.ReadAndProcessSessions(sessionsFilePath, tariffs)
 	assert.Nil(t, err)
-	actualCostFilePath, _ := internal.GetEnv("ACTUAL_COSTS_FILE_LOCATION", logger)
+	actualCostFilePath := envHandler.GetEnv("ACTUAL_COSTS_FILE_LOCATION")
 	actualCosts, _ := internal.ReadFile(actualCostFilePath)
-	outputFileLocation, _ := internal.GetEnv("OUTPUT_FILE_LOCATION", logger)
+	outputFileLocation := envHandler.GetEnv("OUTPUT_FILE_LOCATION")
 	expectedCosts, _ := internal.ReadFile(outputFileLocation)
-	assert.True(t, reflect.DeepEqual(actualCosts, expectedCosts))
+	assert.ElementsMatch(t, actualCosts, expectedCosts)
 	_ = os.Remove(outputFileLocation)
 }
