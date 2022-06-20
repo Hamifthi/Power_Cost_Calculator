@@ -114,7 +114,7 @@ func TestCostCalculator(t *testing.T) {
 
 func TestSearchExactApplicableTariffIndexNotFound(t *testing.T) {
 	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	envHandler := ReadTestEnv(envPath, logger)
+	envHandler := ReadTestEnv(testEnvPath, logger)
 	tariffLines, _ := ReadFile(envHandler.GetEnv("TEST_TARIFF_FILE_LOCATION"))
 	tariffs, _ := ParseTariff(tariffLines[1:])
 	sessionStart, sessionEnd := createStartEndTimeFromString("2023-06-03T10:00:00+02:00",
@@ -127,7 +127,7 @@ func TestSearchExactApplicableTariffIndexNotFound(t *testing.T) {
 
 func TestSearchExactApplicableTariffSuccessfully(t *testing.T) {
 	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	envHandler := ReadTestEnv(envPath, logger)
+	envHandler := ReadTestEnv(testEnvPath, logger)
 	tariffLines, _ := ReadFile(envHandler.GetEnv("TEST_TARIFF_FILE_LOCATION"))
 	tariffs, _ := ParseTariff(tariffLines[1:])
 	sessionStart, sessionEnd := createStartEndTimeFromString("2017-06-01T10:00:00+02:00",
@@ -140,7 +140,7 @@ func TestSearchExactApplicableTariffSuccessfully(t *testing.T) {
 
 func TestGetApplicableTariffsSuccessfully(t *testing.T) {
 	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	envHandler := ReadTestEnv(envPath, logger)
+	envHandler := ReadTestEnv(testEnvPath, logger)
 	tariffLines, _ := ReadFile(envHandler.GetEnv("TEST_TARIFF_FILE_LOCATION"))
 	tariffs, _ := ParseTariff(tariffLines[1:])
 	sessionStart, sessionEnd := createStartEndTimeFromString("2017-06-01T00:00:00+02:00",

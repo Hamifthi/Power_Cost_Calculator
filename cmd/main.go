@@ -42,6 +42,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("can't read tariffs file due to %v", err)
 	}
+	logger.Println("start processing sample costs")
 	err = costCalculator.ReadAndProcessSessions(sessionFileLocation, tariffs)
 	if err != nil {
 		logger.Fatalf("can't process sessions file due to %v", err)
@@ -55,6 +56,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("can't read input tariffs file due to %v", err)
 	}
+	logger.Println("start processing inputs costs")
 	err = costCalculator.ReadAndProcessSessions(inputTestSessionFileLocation, inputTariffs)
 	if err != nil {
 		logger.Fatalf("can't process input sessions file due to %v", err)
@@ -78,6 +80,7 @@ func main() {
 		numberOFFakeTariffs = 14000
 	}
 	dataGenerator := data.New(logger)
+	logger.Println("start generating fake data")
 	err = dataGenerator.CreateSessions(fakeSessionsFIleLocation, numberOFFakeSessions)
 	if err != nil {
 		logger.Fatalf("Error creating fake sessions due to %v", err)
@@ -91,6 +94,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("can't read tariffs file due to %v", err)
 	}
+	logger.Println("start processing fake costs")
 	err = costCalculator.ReadAndProcessSessions(fakeSessionsFIleLocation, tariffs)
 	if err != nil {
 		logger.Fatalf("can't process sessions file due to %v", err)
