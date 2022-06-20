@@ -79,7 +79,6 @@ func GetApplicableTariffs(tariffs []entity.Tariff, tariffIndex int, session enti
 		if index < 0 {
 			break
 		}
-
 		if dateEqual(tariffs[index].Start, session.Start) ||
 			dateEqual(tariffs[index].End, session.Start) ||
 			dateEqual(tariffs[index].Start, sessionOneDayBefore) ||

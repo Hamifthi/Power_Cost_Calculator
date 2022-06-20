@@ -47,6 +47,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("can't process sessions file due to %v", err)
 	}
+
 	// now calculate inputs data
 	inputTestOutputFileLocation := envHandler.GetEnv("INPUT_TEST_OUTPUT_FILE_LOCATION")
 	inputTestTariffsFileLocation := envHandler.GetEnv("INPUT_TEST_TARIFFS_FILE_LOCATION")
@@ -61,6 +62,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("can't process input sessions file due to %v", err)
 	}
+
 	// create fake data and process it
 	start := time.Now()
 	fakeTariffsFIleLocation := envHandler.GetEnv("FAKE_TARIFFS_FILE_LOCATION")
