@@ -44,7 +44,8 @@ func TruncateFloat(number float64) float64 {
 	return math.Trunc(number*1000) / 1000
 }
 
-// use this function to compare date with timezone because truncate function apply timezone in the calculation
+// use this function to compare date without considering timezone because truncate function apply
+// timezone in the calculation
 func dateEqual(firstDate, secondDate time.Time) bool {
 	y1, m1, d1 := firstDate.Date()
 	y2, m2, d2 := secondDate.Date()

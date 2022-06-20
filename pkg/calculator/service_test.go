@@ -12,12 +12,12 @@ import (
 	"time"
 )
 
-var envPath string
+var testEnvPath string
 
 func init() {
 	currentDir, _ := os.Getwd()
 	rootDir := filepath.Dir(filepath.Dir(currentDir))
-	envPath = rootDir + "/test.env"
+	testEnvPath = rootDir + "/test.env"
 }
 
 func initializeCalculatorService(logger *log.Logger, envHandler *internal.EnvHandler) *CostCalculator {
@@ -30,7 +30,7 @@ func initializeCalculatorService(logger *log.Logger, envHandler *internal.EnvHan
 
 func TestReadAndParseTariffsSuccessfully(t *testing.T) {
 	logger := log.New(os.Stdout, "Calculator_Test ", log.LstdFlags)
-	envHandler := internal.ReadTestEnv(envPath, logger)
+	envHandler := internal.ReadTestEnv(testEnvPath, logger)
 	calculator := initializeCalculatorService(logger, envHandler)
 	tariffFilePath := envHandler.GetEnv("TARIFFS_FILE_LOCATION")
 	tariffs, err := calculator.ReadAndParseTariffs(tariffFilePath)
@@ -45,7 +45,7 @@ func TestReadAndParseTariffsSuccessfully(t *testing.T) {
 
 func TestReadAndProcessSessionsInvalidLocationFails(t *testing.T) {
 	logger := log.New(os.Stdout, "Calculator_Test ", log.LstdFlags)
-	envHandler := internal.ReadTestEnv(envPath, logger)
+	envHandler := internal.ReadTestEnv(testEnvPath, logger)
 	calculator := initializeCalculatorService(logger, envHandler)
 	tariffFilePath := envHandler.GetEnv("TARIFFS_FILE_LOCATION")
 	tariffs, _ := calculator.ReadAndParseTariffs(tariffFilePath)
@@ -57,7 +57,7 @@ func TestReadAndProcessSessionsInvalidLocationFails(t *testing.T) {
 
 func TestReadAndProcessSessionsAlreadyExistedCostsFileSuccessfully(t *testing.T) {
 	logger := log.New(os.Stdout, "Calculator_Test ", log.LstdFlags)
-	envHandler := internal.ReadTestEnv(envPath, logger)
+	envHandler := internal.ReadTestEnv(testEnvPath, logger)
 	calculator := initializeCalculatorService(logger, envHandler)
 	outputFileLocation := envHandler.GetEnv("OUTPUT_FILE_LOCATION")
 	_, _ = os.Create(outputFileLocation)
@@ -71,7 +71,7 @@ func TestReadAndProcessSessionsAlreadyExistedCostsFileSuccessfully(t *testing.T)
 
 func TestReadAndProcessSessionsSuccessfully(t *testing.T) {
 	logger := log.New(os.Stdout, "Calculator_Test ", log.LstdFlags)
-	envHandler := internal.ReadTestEnv(envPath, logger)
+	envHandler := internal.ReadTestEnv(testEnvPath, logger)
 	calculator := initializeCalculatorService(logger, envHandler)
 	tariffFilePath := envHandler.GetEnv("TARIFFS_FILE_LOCATION")
 	tariffs, _ := calculator.ReadAndParseTariffs(tariffFilePath)

@@ -17,7 +17,7 @@ func TestReadFileInvalidFilePathFails(t *testing.T) {
 
 func TestReadFileSuccessfully(t *testing.T) {
 	logger := log.New(os.Stdout, "Test ", log.LstdFlags)
-	envHandler := ReadTestEnv(envPath, logger)
+	envHandler := ReadTestEnv(testEnvPath, logger)
 	tariffFileLocation := envHandler.GetEnv("INTERNAL_TARIFFS_FILE_LOCATION")
 	stringSlice, err := ReadFile(tariffFileLocation)
 	assert.Nil(t, err)
