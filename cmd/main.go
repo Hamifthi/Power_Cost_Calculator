@@ -17,9 +17,9 @@ func main() {
 	envHandler := internal.NewEnvHandler(logger)
 	envHandler.InitializeEnv("./.env")
 	// file locations that service will need
-	outputFileLocation := envHandler.GetEnv("OUTPUT_FILE_LOCATION")
-	tariffsFileLocation := envHandler.GetEnv("TARIFFS_FILE_LOCATION")
-	sessionFileLocation := envHandler.GetEnv("SESSIONS_FILE_LOCATION")
+	// outputFileLocation := envHandler.GetEnv("OUTPUT_FILE_LOCATION")
+	// tariffsFileLocation := envHandler.GetEnv("TARIFFS_FILE_LOCATION")
+	// sessionFileLocation := envHandler.GetEnv("SESSIONS_FILE_LOCATION")
 	// get and parse sync pool buffer size
 	syncPoolSizeStr := envHandler.GetEnv("SYNC_POOL_SIZE")
 	syncPoolSize, err := strconv.ParseInt(syncPoolSizeStr, 10, 64)
@@ -38,30 +38,30 @@ func main() {
 	pools := entity.CreateSyncPools(syncPoolSize)
 	// create cost calculator service and process inputs that creates output
 	costCalculator := calculator.New(logger, pools, outputFileLocation, numberOfThreads)
-	tariffs, err := costCalculator.ReadAndParseTariffs(tariffsFileLocation)
-	if err != nil {
-		logger.Fatalf("can't read tariffs file due to %v", err)
-	}
-	logger.Println("start processing sample costs")
-	err = costCalculator.ReadAndProcessSessions(sessionFileLocation, tariffs)
-	if err != nil {
-		logger.Fatalf("can't process sessions file due to %v", err)
-	}
+	// tariffs, err := costCalculator.ReadAndParseTariffs(tariffsFileLocation)
+	// if err != nil {
+	// 	logger.Fatalf("can't read tariffs file due to %v", err)
+	// }
+	// logger.Println("start processing sample costs")
+	// err = costCalculator.ReadAndProcessSessions(sessionFileLocation, tariffs)
+	// if err != nil {
+	// 	logger.Fatalf("can't process sessions file due to %v", err)
+	// }
 
 	// now calculate inputs data
-	inputTestOutputFileLocation := envHandler.GetEnv("INPUT_TEST_OUTPUT_FILE_LOCATION")
-	inputTestTariffsFileLocation := envHandler.GetEnv("INPUT_TEST_TARIFFS_FILE_LOCATION")
-	inputTestSessionFileLocation := envHandler.GetEnv("INPUT_TEST_SESSIONS_FILE_LOCATION")
-	costCalculator.OutputFileLocation = inputTestOutputFileLocation
-	inputTariffs, err := costCalculator.ReadAndParseTariffs(inputTestTariffsFileLocation)
-	if err != nil {
-		logger.Fatalf("can't read input tariffs file due to %v", err)
-	}
-	logger.Println("start processing inputs costs")
-	err = costCalculator.ReadAndProcessSessions(inputTestSessionFileLocation, inputTariffs)
-	if err != nil {
-		logger.Fatalf("can't process input sessions file due to %v", err)
-	}
+	// inputTestOutputFileLocation := envHandler.GetEnv("INPUT_TEST_OUTPUT_FILE_LOCATION")
+	// inputTestTariffsFileLocation := envHandler.GetEnv("INPUT_TEST_TARIFFS_FILE_LOCATION")
+	// inputTestSessionFileLocation := envHandler.GetEnv("INPUT_TEST_SESSIONS_FILE_LOCATION")
+	// costCalculator.OutputFileLocation = inputTestOutputFileLocation
+	// inputTariffs, err := costCalculator.ReadAndParseTariffs(inputTestTariffsFileLocation)
+	// if err != nil {
+	// 	logger.Fatalf("can't read input tariffs file due to %v", err)
+	// }
+	// logger.Println("start processing inputs costs")
+	// err = costCalculator.ReadAndProcessSessions(inputTestSessionFileLocation, inputTariffs)
+	// if err != nil {
+	// 	logger.Fatalf("can't process input sessions file due to %v", err)
+	// }
 
 	// create fake data and process it
 	start := time.Now()

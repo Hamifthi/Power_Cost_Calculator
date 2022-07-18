@@ -70,6 +70,8 @@ atlassian-ide-plugin.xml
 # SonarLint plugin
 .idea/sonarlint/
 
+.idea/**
+
 # Crashlytics plugin (for Android Studio and IntelliJ)
 com_crashlytics_export_strings.xml
 crashlytics.properties
@@ -218,6 +220,9 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/jetbrains,linux,macos,visualstudiocode,windows
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
+./inputs.zip
 /inputs/**
 /generated_data/**
 /outputs/**
+/data/**
+.env
