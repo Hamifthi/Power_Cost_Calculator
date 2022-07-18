@@ -1,110 +1,71 @@
-# NewMotion programming assignment v2.0.3
+# Instructions to run app, and a description for decisions
 
-## First things first
+## How to run code
+create these directories generated_data, inputs, outputs
 
-Please solve this assignment in Go and give us instructions so that we can run your solution running in a shell in a matter of minutes.
-If you need any clarifications about the assignment or you'd like to report some inconsistencies, please open an issue on GitHub, tag one of us, or reach out directly (ask for a contact in the team).
+unzip inputs to inputs folder to test service with generated data in inputs.zip file
 
-## The assignment
+copy the sample.env file to .env file
 
-You are given two files in CSV format:
+The go version is 1.17
 
-- `tariffs.csv` contains a list of tariffs for an arbitrary period of time
-- `sessions.csv` contains a list of sessions for the same period of time
+go mod download && go mod verify
 
-Please write a program that will read both input CSV files and produce a `costs.csv` file whose rows have the following fields:
+go test -v ./...
 
-- the session identifier
-- its total cost
+go build -v -o ./app ./cmd/main.go
 
-Please note that your solution should be able to ingest and process large `sessions.csv` files (= hundreds of MBs).
+./app
 
-### Tariffs
+### run with docker
+create outputs directory to get generated files in case want to check them.
 
-A tariff is defined by the following fields:
+docker build -t calculator .
 
-- a start instant
-- an end instant
-- an energy fee (in €/kWh)
-- a parking fee (in €/hour)
+docker run -it --rm --name app-container --mount type=bind,source="$(pwd)"/outputs,target=/usr/src/app/outputs calculator
 
-The input `tariffs.csv` dataset is guaranteed to have the following properties:
+## design decisions
+I decided to use clean architecture to write the app because of its extensibility,
+ and the well-defined and separated responsibility of each layer.
+So I put the models in the entity package, and the business or core logic in the pkg folder
+ as services.
+Also, I try to use the Go standard project layout from this github repo 
+ https://github.com/golang-standards/project-layout
 
-- no two tariffs will overlap with each other (= there is only one _active_ tariff at any point in time)
-- tariffs will be sorted in ascending order by start instant
-- there are no time gaps between any two adjacent tariffs (= the end instant of a tariff is equal to the start instant of the next one)
+I use dependency injection for each layer dependency, As it makes testing much easier
+ and, also is based on dependency inversion from SOLID principles. I try my best to use
+ solid principles in the whole code.
+ 
+I put the configurable settings in env file and use a service like code for handling reading
+ environment variables because handling errors in the main file makes it dirty.
+ It uses logger as dependency.
+ 
+Because the size of sessions may become so large that may not fit in ram totally I use
+ buffer and process data in chunks. I use a producer consumer like design where multiple
+ chunks processed and wrote down to the output file. By utilizing the sync.pool feature
+ I can reduce the pressure on the GC and use less memory. Besides, with the help of channels
+ I limit the number of threads that is also configurable to reduce the pressure on CPU.
 
-### Sessions
+Since writing down the results may cause race condition between go routines I put a mutex lock
+ for output file.
 
-A session is defined by the following fields:
+With this process model we can handle files as large as multiple gigabytes of data. The size
+ of the ram to allocate is configurable.
+  
+With the help of the interfaces the implementation become flexible in case in future the
+ implementation wants change due to new requirements.
 
-- a unique identifier
-- a start instant
-- an end instant
-- the energy consumed (in kWh)
+I write unit tests for all parts except for cases that trigger error, where it might not common.
 
-The input `sessions.csv` dataset is guaranteed to have the following properties:
+With the help of fake data generator I'm able to test my code in a production like environment,
+ with this in mind that fake data generator is just a tool to test the service, I didn't optimize
+ the data generator to run faster or consume less memory. It could be done if the project requirements
+ change in the future.
 
-- each session happened in a time interval for which _at least_ one active tariff exists
-
-### Cost calculation
-
-Given:
-
-```
-tariff_cost = energy_consumed_in_tariff_interval * energy_fee + duration_in_tariff_interval * parking_fee
-```
-
-then the session's `total_cost` is calculated by:
-
-- taking the sum of all _applicable_ tariffs' `tariff_cost`s
-- multiplying it by `1.15` (= 15%, our service fee), and
-- truncating the result to 3 decimal digits
-
-**Notes:**
-
-- duration intervals are intended as floating point numbers of hours;
-- for the sake of simplicity, please assume that energy consumption is constant throughout the duration of the session;
-
-A tariff is applicable to a session if:
-
-- it was _active_ when the session started, or
-- it became the _active_ one while the session was in progress
-
-### A note about datetime strings
-
-Datetime strings in CSV files are formatted according to RFC 3339, so the following examples are all valid:
-
-- 2020-05-05T08:00:00+01:00
-- 2020-05-05T08:00:00.0Z
-- 2020-05-05T08:00:00.123456-01:00
-
-### Examples of data
-
-#### Input
-
-`tariffs.csv`:
-```
-dt_start,dt_end,energy_fee,parking_fee
-2020-06-03T00:00:00+02:00,2020-06-03T10:10:00+02:00,0.5,0.5
-2020-06-03T10:10:00+02:00,2020-06-03T14:10:00+02:00,0.3,0.25
-2020-06-03T14:10:00+02:00,2020-06-04T22:00:00+02:00,0.7,0.1
-```
-
-`sessions.csv`:
-```
-id,dt_start,dt_end,energy
-a949d681-e12b-4d93-a3e5-e2e777e68f12,2020-06-03T10:00:00+02:00,2020-06-03T10:26:00+02:00,3.69
-d467391f-0213-44ef-8d68-eea9144e9aa3,2020-06-03T14:49:00+02:00,2020-06-03T14:55:00+02:00,3
-99e8fa40-e5e9-4957-9cf3-02e5aa78cf67,2020-06-04T02:52:00+02:00,2020-06-04T02:53:00+02:00,0
-```
-
-#### Output
-
-`costs.csv`:
-```
-session_id,total_cost
-a949d681-e12b-4d93-a3e5-e2e777e68f12,1.771
-d467391f-0213-44ef-8d68-eea9144e9aa3,2.426
-99e8fa40-e5e9-4957-9cf3-02e5aa78cf67,0.001
-```
+## Benchmarks and results
+Because the size of sessions could go beyond millions the first approach which was comparing each session
+ with each tariff becomes inefficient soon because its time is approximately O(n2).
+So I decided to use binary search for finding the tariff that may applied to session and this decrease time
+ complexity to approximately O(logn).
+I test code with a 300 MB fake sessions that result in runtime of 8 minutes with the first version of code and
+ about 2 minute and 30 seconds with the version uses binary search.
